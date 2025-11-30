@@ -3,6 +3,8 @@ name: Build Android APK
 on:
   push:
     branches: [ master, main ]
+    tags:
+      - 'v*'  # 触发 tag 发布 (如 v1.1.8)
   pull_request:
     branches: [ master, main ]
   workflow_dispatch:  # 允许手动触发
@@ -49,21 +51,48 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
 
+    - name: Get version from gradle.properties
+      id: version
+      run: |
+        VERSION=$(grep "appVersionName" gradle.properties | cut -d'=' -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
     - name: Build debug APK
       run: ./gradlew assembleDebug --no-daemon
 
-    - name: Upload debug APK
+    - name: Rename APK with version
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        mkdir -p release
+        cp app/build/outputs/apk/debug/app-debug.apk release/biliSpeed_${VERSION}.apk
+        echo "APK renamed to: biliSpeed_${VERSION}.apk"
+
+    - name: Upload debug APK (Artifact)
       uses: actions/upload-artifact@v4
       with:
-        name: biliSpeed-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        name: biliSpeed_${{ steps.version.outputs.version }}
+        path: release/biliSpeed_${{ steps.version.outputs.version }}.apk
 
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2
       with:
+        name: biliSpeed v${{ steps.version.outputs.version }}
+        body: |
+          ## biliSpeed v${{ steps.version.outputs.version }}
+          
+          ### 📦 下载
+          - **biliSpeed_${{ steps.version.outputs.version }}.apk** - Android APK 安装包
+          
+          ### 📋 更新内容
+          请查看提交历史获取详细更新内容。
+          
+          ### ⚠️ 注意
+          - 需要 Android 8.0 (API 26) 或更高版本
+          - 需要 LSPosed/Xposed 框架支持
         files: |
-          app/build/outputs/apk/debug/app-debug.apk
+          release/biliSpeed_${{ steps.version.outputs.version }}.apk
         generate_release_notes: true
         draft: false
         token: ${{ secrets.GITHUB_TOKEN }}
