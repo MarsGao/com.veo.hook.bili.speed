@@ -4,7 +4,8 @@ on:
   push:
     branches: [ master, main ]
     tags:
-      - 'v*'  # 触发 tag 发布 (如 v1.1.8)
+      - 'v*'        # 触发 tag 发布 (如 v1.1.9)
+      - '[0-9]*'    # LSPosed 格式 (如 1001009-1.1.9)
   pull_request:
     branches: [ master, main ]
   workflow_dispatch:  # 允许手动触发
@@ -55,8 +56,14 @@ jobs:
       id: version
       run: |
         VERSION=$(grep "appVersionName" gradle.properties | cut -d'=' -f2)
+        # 从 app/build.gradle 获取 versionCode
+        VERSION_CODE=$(grep "versionCode" app/build.gradle | head -1 | sed 's/[^0-9]//g')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Version: $VERSION"
+        echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+        # LSPosed 格式: VersionCode-VersionName
+        echo "lsposed_tag=${VERSION_CODE}-${VERSION}" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION (Code: $VERSION_CODE)"
+        echo "LSPosed Tag: ${VERSION_CODE}-${VERSION}"
 
     - name: Build debug APK
       run: ./gradlew assembleDebug --no-daemon
@@ -74,23 +81,36 @@ jobs:
         name: biliSpeed_${{ steps.version.outputs.version }}
         path: release/biliSpeed_${{ steps.version.outputs.version }}.apk
 
-    - name: Create GitHub Release
+    - name: Create GitHub Release (LSPosed Format)
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2
       with:
-        name: biliSpeed v${{ steps.version.outputs.version }}
+        # 使用 LSPosed 格式的 tag: VersionCode-VersionName
+        tag_name: ${{ steps.version.outputs.lsposed_tag }}
+        name: ${{ steps.version.outputs.lsposed_tag }}
         body: |
-          ## biliSpeed v${{ steps.version.outputs.version }}
+          ## Bili调速 v${{ steps.version.outputs.version }}
           
           ### 📦 下载
           - **biliSpeed_${{ steps.version.outputs.version }}.apk** - Android APK 安装包
           
-          ### 📋 更新内容
-          请查看提交历史获取详细更新内容。
+          ### 📱 支持应用
+          - 哔哩哔哩 B站 (7.25.0 / 3.20.4 GP)
+          - 微信视频号 WeChat (8.0.62 GP)
+          - 抖音 Douyin (25.6.0)
+          - 小红书 (8.23.0.5)
+          - Twitter/X (11.20.0)
+          - Instagram (315.0.0.29.109)
+          - Telegram
+          - 微博 Weibo (14.6.0)
           
           ### ⚠️ 注意
           - 需要 Android 8.0 (API 26) 或更高版本
           - 需要 LSPosed/Xposed 框架支持
+          
+          ### 🙏 致谢
+          - 原项目: [V-E-O/biliSpeed](https://github.com/V-E-O/biliSpeed)
+          - AI辅助: Cursor + Claude Opus 4.5
         files: |
           release/biliSpeed_${{ steps.version.outputs.version }}.apk
         generate_release_notes: true
