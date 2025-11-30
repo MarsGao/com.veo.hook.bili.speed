@@ -1,8 +1,15 @@
 # Bili调速 (biliSpeed)
 
+[![GitHub stars](https://img.shields.io/github/stars/MarsGao/biliSpeed?style=social)](https://github.com/MarsGao/biliSpeed/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/MarsGao/biliSpeed?style=social)](https://github.com/MarsGao/biliSpeed/network/members)
+[![GitHub release](https://img.shields.io/github/v/release/MarsGao/biliSpeed)](https://github.com/MarsGao/biliSpeed/releases)
+[![License](https://img.shields.io/github/license/MarsGao/biliSpeed)](LICENSE.md)
+
 Bili默认播放速度调节 - 一个基于Xposed的Android模块，用于调节多个应用的播放速度。
 
-## 功能特性
+> 🎉 **这是我的第一个开源项目！** 作为非计算机专业的学习者，感谢开源社区让我有机会参与项目开发和学习。如果这个项目对你有帮助，请给我一个 ⭐ Star，这将是对我最大的鼓励！
+
+## ✨ 功能特性
 
 - 🚀 支持多款主流应用：
   - 哔哩哔哩 (B站)
@@ -18,9 +25,44 @@ Bili默认播放速度调节 - 一个基于Xposed的Android模块，用于调节
 - 🎯 区分自动播放和手动设置
 - 🔧 易于使用的设置界面
 
-## 在线构建 APK
+## 📱 已测试版本
 
-### 🚀 使用 GitHub Actions 自动构建
+本项目主要适配 **Google Play** 版本的应用：
+
+| 应用 | 测试版本 | 状态 |
+|------|----------|------|
+| 微信 WeChat | 8.0.62 (GP) | ✅ 已测试 |
+| 哔哩哔哩 bilibili | 3.20.4 (GP) | ✅ 已测试 |
+| 抖音 TikTok | - | 🔄 待测试 |
+| 其他应用 | - | 🔄 待测试 |
+
+> 📝 **说明**: 本人主要使用的应用均来自 Google Play，因此主要考虑适配 Google Play 版本。如果您需要其他版本或应用的适配，欢迎提 [Issue](https://github.com/MarsGao/biliSpeed/issues) 反馈！
+
+## 🙏 致谢
+
+### 原项目作者
+特别感谢原项目作者 **[V-E-O](https://github.com/V-E-O)** 的 [biliSpeed](https://github.com/V-E-O/biliSpeed) 项目，为本项目提供了基础框架和灵感。
+
+### AI 辅助开发
+本项目在开发过程中得到了以下 AI 工具的大力支持：
+
+- 🤖 **[Cursor](https://cursor.sh/)** - 智能代码编辑器
+- 🧠 **[Claude Opus 4.5](https://www.anthropic.com/)** - Anthropic 的大语言模型
+
+作为非计算机专业的学习者，正是这些优秀的 AI 工具让我有机会深入理解代码逻辑、学习 Android Hook 原理，并最终将这个项目落地。感谢 AI 时代为普通人打开的技术学习大门！
+
+### 开源社区
+感谢所有为 Xposed 生态做出贡献的开发者们！
+
+## 📥 下载安装
+
+### 方式一：GitHub Releases（推荐）
+
+前往 [Releases](https://github.com/MarsGao/biliSpeed/releases) 页面下载最新版本的 APK。
+
+### 方式二：自行构建
+
+#### 🚀 使用 GitHub Actions 自动构建
 
 1. **Fork 此项目** 到您的 GitHub 账户
 
@@ -34,7 +76,7 @@ Bili默认播放速度调节 - 一个基于Xposed的Android模块，用于调节
    - 工作流完成后，点击对应的运行
    - 在 "Artifacts" 部分下载 APK 文件
 
-### 🔐 可选：设置签名密钥 (用于 Release 版本)
+#### 🔐 可选：设置签名密钥 (用于 Release 版本)
 
 如果您想构建签名版本的 APK：
 
@@ -56,7 +98,7 @@ Bili默认播放速度调节 - 一个基于Xposed的Android模块，用于调节
      - `SIGNING_KEY_PASSWORD`: 密钥密码
      - `SIGNING_STORE_PASSWORD`: 密钥库密码
 
-## 本地开发
+## 💻 本地开发
 
 ### 环境要求
 
@@ -68,7 +110,7 @@ Bili默认播放速度调节 - 一个基于Xposed的Android模块，用于调节
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/biliSpeed.git
+git clone https://github.com/MarsGao/biliSpeed.git
 cd biliSpeed
 
 # 构建 Debug 版本
@@ -89,9 +131,10 @@ cd biliSpeed
    ```
 
 3. **激活模块**：
-   - 打开 Xposed 管理器
+   - 打开 Xposed 管理器 (如 LSPosed)
    - 启用 "Bili调速" 模块
-   - 重启设备
+   - 勾选需要Hook的目标应用
+   - 重启目标应用
 
 4. **设置速度**：
    - 打开 "Bili调速" 应用
@@ -102,14 +145,14 @@ cd biliSpeed
    - 打开支持的应用播放视频
    - 观察播放速度是否生效
 
-## 技术架构
+## 🔧 技术架构
 
 - **框架**: Xposed Framework
 - **语言**: Java
 - **构建工具**: Gradle
 - **CI/CD**: GitHub Actions
 
-## Hook 策略
+## 🎯 Hook 策略
 
 项目采用多重 Hook 策略确保兼容性：
 
@@ -119,7 +162,7 @@ cd biliSpeed
 4. **系统MediaPlayer Hook**: 作为兜底方案
 5. **智能判断**: 通过调用栈分析区分自动播放和手动设置
 
-## 更新日志
+## 📋 更新日志
 
 ### v1.1.9 (2025-11-30)
 
@@ -172,14 +215,25 @@ cd biliSpeed
 - 初始微信视频号支持
 - 多策略Hook架构
 
-## 许可证
-
-本项目采用 GPL-3.0 许可证。
-
-## 贡献
+## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
 
-## 免责声明
+- 🐛 **发现 Bug？** 请提交 [Issue](https://github.com/MarsGao/biliSpeed/issues)
+- 💡 **有新想法？** 欢迎讨论和建议
+- 🔧 **想要贡献代码？** 欢迎提交 PR
+
+## 📄 许可证
+
+本项目采用 [GPL-3.0](LICENSE.md) 许可证。
+
+## ⚠️ 免责声明
 
 本项目仅用于学习和研究目的，请遵守相关法律法规。使用本模块造成的任何后果由使用者自行承担。
+
+---
+
+<p align="center">
+  如果这个项目对你有帮助，请给我一个 ⭐ Star！<br>
+  Made with ❤️ by <a href="https://github.com/MarsGao">MarsGao</a>
+</p>
