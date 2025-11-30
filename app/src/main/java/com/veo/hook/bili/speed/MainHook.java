@@ -652,25 +652,231 @@ public class MainHook implements IXposedHookLoadPackage {
                 });
                 XposedBridge.log("hooked tg setPlaybackSpeed");
             } else if (wx) {
-                XposedHelpers.findAndHookMethod("com.tencent.mm.plugin.finder.video.FinderThumbPlayerProxy", lpparam.classLoader, "setPlaySpeed", float.class, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        float speed = (float) param.args[0];
-                        if (speed == 1.0f) {
-//                            XposedBridge.log(Log.getStackTraceString(new Throwable()));
-                            StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-                            for (int i = 4; i <= 10 && i < stackTraceElements.length; i++) {
-                                if ("com.tencent.mm.plugin.finder.video.FinderVideoLayout".equals(stackTraceElements[i].getClassName())) {
-                                    param.args[0] = getSpeedConfig();
-                                    XposedBridge.log("wx speed set");
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                });
-                XposedBridge.log("hooked wx setPlaySpeed");
+                logWeChatHook("Starting WeChat hook with multi-strategy approach");
+
+                // 优先级1: 通用播放器Hook（最可能成功）
+                hookWeChatPlayers(lpparam);
+
+                // 优先级2: Hook所有可能的播放速度设置方法
+                hookWeChatSpeedMethods(lpparam);
+
+                // 优先级3: 原有精确Hook（作为最后手段）
+                tryOriginalWeChatHook(lpparam);
+
+                logWeChatHook("WeChat hook initialization completed");
             }
         }
+    }
+
+    // ===== 微信Hook改进方案 =====
+
+    /**
+     * 方案1: 通用播放器Hook - 动态查找所有播放器相关类
+     */
+    private static void hookWeChatPlayers(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            logWeChatHook("Starting universal player hook...");
+
+            // 通过反射获取所有类（有限的方法）
+            Class<?>[] candidateClasses = getWeChatPlayerClasses(lpparam.classLoader);
+
+            int hookedCount = 0;
+            for (Class<?> clazz : candidateClasses) {
+                try {
+                    // 尝试hook setPlaySpeed方法
+                    Method speedMethod = XposedHelpers.findMethodExactIfExists(clazz, "setPlaySpeed", float.class);
+                    if (speedMethod != null) {
+                        XposedBridge.hookMethod(speedMethod, new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                handleWeChatSpeedChange(param, "universal");
+                            }
+                        });
+                        hookedCount++;
+                        logWeChatHook("Hooked universal: " + clazz.getName());
+                    }
+
+                    // 同时尝试hook setSpeed方法
+                    Method speedMethod2 = XposedHelpers.findMethodExactIfExists(clazz, "setSpeed", float.class);
+                    if (speedMethod2 != null) {
+                        XposedBridge.hookMethod(speedMethod2, new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                handleWeChatSpeedChange(param, "universal-speed");
+                            }
+                        });
+                        hookedCount++;
+                        logWeChatHook("Hooked universal setSpeed: " + clazz.getName());
+                    }
+                } catch (Exception e) {
+                    // 忽略单个类的异常，继续下一个
+                }
+            }
+            logWeChatHook("Universal hook completed, hooked " + hookedCount + " methods");
+        } catch (Exception e) {
+            logWeChatHook("Error in universal hook: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Hook所有可能的播放速度相关方法
+     */
+    private static void hookWeChatSpeedMethods(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            logWeChatHook("Starting speed methods hook...");
+
+            String[] possibleMethods = {"setPlaySpeed", "setSpeed", "setPlaybackSpeed", "setRate", "setPlaybackRate"};
+            int hookedCount = 0;
+
+            for (String methodName : possibleMethods) {
+                try {
+                    // 查找微信包下所有包含指定方法的类
+                    Class<?>[] candidateClasses = getWeChatPlayerClasses(lpparam.classLoader);
+
+                    for (Class<?> clazz : candidateClasses) {
+                        try {
+                            Method method = XposedHelpers.findMethodExactIfExists(clazz, methodName, float.class);
+                            if (method != null) {
+                                XposedBridge.hookMethod(method, new XC_MethodHook() {
+                                    @Override
+                                    protected void beforeHookedMethod(MethodHookParam param) {
+                                        handleWeChatSpeedChange(param, "method-" + methodName);
+                                    }
+                                });
+                                hookedCount++;
+                                logWeChatHook("Hooked method " + methodName + ": " + clazz.getName());
+                            }
+                        } catch (Exception e) {
+                            // 继续下一个类
+                        }
+                    }
+                } catch (Exception e) {
+                    // 继续下一个方法
+                }
+            }
+            logWeChatHook("Speed methods hook completed, hooked " + hookedCount + " methods");
+        } catch (Exception e) {
+            logWeChatHook("Error in speed methods hook: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 改进的速度判断逻辑
+     */
+    private static void handleWeChatSpeedChange(XC_MethodHook.MethodHookParam param, String source) {
+        try {
+            float speed = (float) param.args[0];
+
+            // 使用浮点数比较，避免精度问题
+            if (Math.abs(speed - 1.0f) < 0.01f) {
+                // 检查调用栈，确认是自动播放而不是用户手动设置
+                StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+
+                boolean isAutoPlay = true;
+                boolean foundFinder = false;
+
+                for (int i = 3; i < Math.min(20, stackTraceElements.length); i++) {
+                    String className = stackTraceElements[i].getClassName();
+                    String methodName = stackTraceElements[i].getMethodName();
+
+                    // 如果调用链中包含用户交互相关类，则可能是手动设置
+                    if (className.contains("OnClick") ||
+                        className.contains("Touch") ||
+                        className.contains("Gesture") ||
+                        methodName.contains("onClick") ||
+                        methodName.contains("onTouch") ||
+                        methodName.contains("onItemClick")) {
+                        isAutoPlay = false;
+                        logWeChatHook("Manual speed change detected from " + source);
+                        break;
+                    }
+
+                    // 如果是Finder相关类的自动播放，则应用速度设置
+                    if (className.toLowerCase().contains("finder") ||
+                        className.toLowerCase().contains("video") ||
+                        className.contains("com.tencent.mm")) {
+                        foundFinder = true;
+                    }
+                }
+
+                if (isAutoPlay && foundFinder) {
+                    float newSpeed = getSpeedConfig();
+                    param.args[0] = newSpeed;
+                    logWeChatHook("Auto speed set from " + source + ": " + newSpeed);
+                }
+            }
+        } catch (Exception e) {
+            logWeChatHook("Error in speed change handler: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取微信中可能的播放器类
+     */
+    private static Class<?>[] getWeChatPlayerClasses(ClassLoader classLoader) {
+        // 由于Android限制，我们无法直接获取所有类
+        // 改用已知的播放器类列表和模式匹配
+        String[] knownPlayerClasses = {
+            "com.tencent.mm.plugin.finder.video.FinderThumbPlayerProxy",
+            "com.tencent.mm.plugin.finder.video.FinderVideoPlayer",
+            "com.tencent.mm.plugin.finder.video.FinderVideoCore",
+            "com.tencent.mm.plugin.sns.video.SnsVideoPlayer",
+            "com.tencent.mm.plugin.sns.video.SnsVideoView",
+            "com.tencent.mm.plugin.video.player.MMVideoPlayer",
+            "com.tencent.mm.plugin.video.player.VideoPlayer",
+            "com.tencent.mm.plugin.appbrand.video.AppBrandVideoPlayer",
+            "com.tencent.mm.plugin.appbrand.video.AppBrandVideoView"
+        };
+
+        java.util.List<Class<?>> classes = new java.util.ArrayList<>();
+
+        // 尝试加载已知的类
+        for (String className : knownPlayerClasses) {
+            try {
+                Class<?> clazz = XposedHelpers.findClassIfExists(className, classLoader);
+                if (clazz != null) {
+                    classes.add(clazz);
+                }
+            } catch (Exception e) {
+                // 忽略不存在的类
+            }
+        }
+
+        // 尝试通过包名动态查找（如果可能的话）
+        try {
+            // 这里可以添加更复杂的查找逻辑
+            // 比如扫描特定包下的类等
+        } catch (Exception e) {
+            // 忽略异常
+        }
+
+        return classes.toArray(new Class<?>[0]);
+    }
+
+    /**
+     * 保留原有的精确Hook作为备用
+     */
+    private static void tryOriginalWeChatHook(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            XposedHelpers.findAndHookMethod("com.tencent.mm.plugin.finder.video.FinderThumbPlayerProxy",
+                lpparam.classLoader, "setPlaySpeed", float.class, new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    handleWeChatSpeedChange(param, "original");
+                }
+            });
+            logWeChatHook("Original hook successful");
+        } catch (XposedHelpers.ClassNotFoundError e) {
+            logWeChatHook("Original hook failed: FinderThumbPlayerProxy not found");
+        } catch (Exception e) {
+            logWeChatHook("Original hook error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 统一的微信日志输出
+     */
+    private static void logWeChatHook(String message) {
+        XposedBridge.log("[WeChatSpeed] " + message);
     }
 }

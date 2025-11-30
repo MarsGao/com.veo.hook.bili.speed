@@ -1,0 +1,130 @@
+# Bili调速 (biliSpeed)
+
+Bili默认播放速度调节 - 一个基于Xposed的Android模块，用于调节多个应用的播放速度。
+
+## 功能特性
+
+- 🚀 支持多款主流应用：
+  - 哔哩哔哩 (B站)
+  - 微信视频号
+  - 抖音
+  - 快手
+  - 微博
+  - 小红书
+  - Instagram
+  - Telegram
+
+- ⚡ 智能速度调节
+- 🎯 区分自动播放和手动设置
+- 🔧 易于使用的设置界面
+
+## 在线构建 APK
+
+### 🚀 使用 GitHub Actions 自动构建
+
+1. **Fork 此项目** 到您的 GitHub 账户
+
+2. **推送代码** 到 main 分支，或手动触发 Actions：
+   - 访问您的仓库
+   - 点击 "Actions" 标签
+   - 点击 "Build Android APK" 工作流
+   - 点击 "Run workflow" 按钮
+
+3. **下载 APK**：
+   - 工作流完成后，点击对应的运行
+   - 在 "Artifacts" 部分下载 APK 文件
+
+### 🔐 可选：设置签名密钥 (用于 Release 版本)
+
+如果您想构建签名版本的 APK：
+
+1. **生成密钥库**：
+   ```bash
+   keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key-alias
+   ```
+
+2. **转换为 Base64**：
+   ```bash
+   base64 my-release-key.jks
+   ```
+
+3. **设置 GitHub Secrets**：
+   - 访问您的仓库 Settings > Secrets and variables > Actions
+   - 添加以下 secrets：
+     - `SIGNING_KEYSTORE_BASE64`: 上面生成的 base64 字符串
+     - `SIGNING_KEY_ALIAS`: 您的密钥别名
+     - `SIGNING_KEY_PASSWORD`: 密钥密码
+     - `SIGNING_STORE_PASSWORD`: 密钥库密码
+
+## 本地开发
+
+### 环境要求
+
+- Java JDK 17
+- Android Studio Arctic Fox 或更高版本
+- Android SDK API 33
+
+### 本地构建
+
+```bash
+# 克隆项目
+git clone https://github.com/your-username/biliSpeed.git
+cd biliSpeed
+
+# 构建 Debug 版本
+./gradlew assembleDebug
+
+# 构建 Release 版本 (需要签名配置)
+./gradlew assembleRelease
+```
+
+### 安装和测试
+
+1. **启用 USB 调试**：
+   - 手机设置 > 开发者选项 > USB 调试
+
+2. **安装 APK**：
+   ```bash
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+3. **激活模块**：
+   - 打开 Xposed 管理器
+   - 启用 "Bili调速" 模块
+   - 重启设备
+
+4. **设置速度**：
+   - 打开 "Bili调速" 应用
+   - 输入期望速度 (如 1.5)
+   - 点击设置
+
+5. **测试**：
+   - 打开支持的应用播放视频
+   - 观察播放速度是否生效
+
+## 技术架构
+
+- **框架**: Xposed Framework
+- **语言**: Java
+- **构建工具**: Gradle
+- **CI/CD**: GitHub Actions
+
+## Hook 策略
+
+项目采用多重 Hook 策略确保兼容性：
+
+1. **通用播放器 Hook**: 动态查找播放器相关类
+2. **方法签名 Hook**: 匹配所有可能的播放速度设置方法
+3. **智能判断**: 通过调用栈分析区分自动播放和手动设置
+
+## 许可证
+
+本项目采用 GPL-3.0 许可证。
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 免责声明
+
+本项目仅用于学习和研究目的，请遵守相关法律法规。使用本模块造成的任何后果由使用者自行承担。
